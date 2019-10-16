@@ -7,14 +7,17 @@
   
   <title>git_learn | Hexo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta property="og:type" content="article">
+  <meta name="description" content="git 的使用git 是一个分布式版本控制系统. cvs/svn 都是集中式版本管理工具. 集中式版本管理 vs 分布式版本管理工具  集中式 版本库是在中央服务器,干活的时候,是用自己的电脑,所以要先从服务器上下载最新的版本才能进行干活.干完活需要把自己的工作推送到中央仓库. 集中式 版本库的最大特点是必须要联网才能工作 分布式 版本库没有 中央服务器的概念,每个人电脑上都是一个完整的版本库,这">
+<meta property="og:type" content="article">
 <meta property="og:title" content="git_learn">
 <meta property="og:url" content="http://yoursite.com/2019/10/14/git-learn/index.html">
 <meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="git 的使用git 是一个分布式版本控制系统. cvs/svn 都是集中式版本管理工具. 集中式版本管理 vs 分布式版本管理工具  集中式 版本库是在中央服务器,干活的时候,是用自己的电脑,所以要先从服务器上下载最新的版本才能进行干活.干完活需要把自己的工作推送到中央仓库. 集中式 版本库的最大特点是必须要联网才能工作 分布式 版本库没有 中央服务器的概念,每个人电脑上都是一个完整的版本库,这">
 <meta property="og:locale" content="en">
-<meta property="og:updated_time" content="2019-10-14T03:13:43.073Z">
+<meta property="og:updated_time" content="2019-10-16T08:19:37.174Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="git_learn">
+<meta name="twitter:description" content="git 的使用git 是一个分布式版本控制系统. cvs/svn 都是集中式版本管理工具. 集中式版本管理 vs 分布式版本管理工具  集中式 版本库是在中央服务器,干活的时候,是用自己的电脑,所以要先从服务器上下载最新的版本才能进行干活.干完活需要把自己的工作推送到中央仓库. 集中式 版本库的最大特点是必须要联网才能工作 分布式 版本库没有 中央服务器的概念,每个人电脑上都是一个完整的版本库,这">
   
     <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
   
@@ -83,7 +86,41 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        
+        <h2 id="git-的使用"><a href="#git-的使用" class="headerlink" title="git 的使用"></a>git 的使用</h2><p>git 是一个分布式版本控制系统.</p>
+<p>cvs/svn 都是集中式版本管理工具.</p>
+<p><strong>集中式版本管理 vs 分布式版本管理工具</strong></p>
+<ol>
+<li>集中式 版本库是在中央服务器,干活的时候,是用自己的电脑,所以要先从服务器上下载最新的版本才能进行干活.干完活需要把自己的工作推送到中央仓库.</li>
+<li>集中式 版本库的最大特点是必须要联网才能工作</li>
+<li>分布式 版本库没有 中央服务器的概念,每个人电脑上都是一个完整的版本库,这样在工作的时候不需要联网,因为版本库就在自己的电脑上.多人协作的时候,两人都修改了文件A,只需要两人把各自的修改推送给对方,就可以互相看到对方的提交信息了.</li>
+<li>分布式版本管理的安全性高,因为每人手里都一份备份.而集中式版本控制系统的中央服务器如果除了问题,那么所有人都没有办法干活.</li>
+<li>在实际使用分布式版本控制系统时,通常会有一台充当”中央服务器”的电脑.但这个服务器的作用仅仅是用来方便”交换”大家的修改,没有它一样干活.只是交换修改不方便而已.</li>
+<li>Git有强大的分支管理.</li>
+</ol>
+<h3 id="git安装"><a href="#git安装" class="headerlink" title="git安装"></a>git安装</h3><p>git 安装完后,需要最后一步设置</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> git config --global user.name "guoxh"</span><br><span class="line"><span class="meta">$</span> git config --global user.emial "guoxh@aliyun.com"</span><br></pre></td></tr></table></figure>
+
+<h3 id="创建版本库"><a href="#创建版本库" class="headerlink" title="创建版本库"></a>创建版本库</h3><p>在任一空白目录创建一个文件夹,然后执行 <code>git init</code>命令将这个目录变成Git可以要管理的仓库.</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> git init  #在工作目录中初始化新仓库</span><br><span class="line"><span class="meta">$</span> touch readme.md #创建一个readme.md的文件</span><br><span class="line"><span class="meta">$</span> git add . #添加文件到git版本控制中</span><br><span class="line"><span class="meta">$</span> git commit -m "first commit " # 提交到暂存区</span><br><span class="line"><span class="meta">$</span> git clone </span><br><span class="line"></span><br><span class="line"><span class="meta">$</span> git status</span><br><span class="line"><span class="meta">$</span> git diff README.md #如果文件修改后未提交可以通过该命令查看修改的内容.</span><br><span class="line"><span class="meta">$</span> git log # 查看提交历史 git log --pretty=oneline</span><br></pre></td></tr></table></figure>
+
+<p>在git中,<code>HEAD</code>表示当前版本,<code>HEAD^</code>表示上一个版本,以此类推,如果向上推100个版本,可以写成<code>HEAD-100</code>.</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> git 回退版本</span><br><span class="line"><span class="meta">$</span> git reset --hard HEAD^</span><br><span class="line"><span class="meta">$</span> git reset --hard commit-id</span><br><span class="line"><span class="meta">$</span> git reflog # 记录你的每一次命令</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span> git checkout -- README.md #在add前将文件回复到HEAD状态</span><br><span class="line"><span class="meta">$</span> git reset HEAD README.md # 将add后的修改回退到工作区</span><br><span class="line"><span class="meta">$</span> git reset --hard HEAD^   # 将commit后的数据回退到上一班本,git reflog 本地可以看到commit历史,但是别人查看不到</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span> git add test.txt</span><br><span class="line"><span class="meta">$</span> git commit -m "add test.txt"</span><br><span class="line"><span class="meta">$</span> rm -rf test.txt</span><br><span class="line"><span class="meta">#</span> 如果在本地删除文件,工作区和版本库信息不一致,一种是在版本库中删除该文件</span><br><span class="line"><span class="meta">$</span> git rm test.txt</span><br><span class="line"><span class="meta">$</span> git commit -m "del test.txt"</span><br><span class="line"><span class="meta">#</span> 另一种方式是在恢复版本库中的文件,但是提交到版本库后修改的内容会丢失</span><br><span class="line"><span class="meta">$</span> git checkout -- test.txt</span><br></pre></td></tr></table></figure>
+
+<h3 id="git-分支管理"><a href="#git-分支管理" class="headerlink" title="git 分支管理"></a>git 分支管理</h3><h4 id="branch-分支"><a href="#branch-分支" class="headerlink" title="branch 分支"></a>branch 分支</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> ssh-keygen -t rsa -C "youemail@example.com"</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span> git branch # 查看分支</span><br><span class="line"><span class="meta">$</span> git branch &lt;name&gt; # 创建分支</span><br><span class="line"><span class="meta">$</span> git checkout &lt;name&gt; # 切换分支</span><br><span class="line"><span class="meta">$</span> git checkout -b &lt;name&gt; # 创建并切换分支</span><br><span class="line"><span class="meta">$</span> git merge &lt;name&gt; # 合并分支</span><br><span class="line"><span class="meta">$</span> git branch -d &lt;name&gt; # 删除分支</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span> git stash</span><br><span class="line"><span class="meta">$</span> git stash list </span><br><span class="line"><span class="meta">$</span> git stash apply</span><br><span class="line"><span class="meta">$</span> git stash apply stash@&#123;0&#125;</span><br><span class="line"><span class="meta">$</span> git stash drop # git stash apply不会删除stash,需要通过git stash drop 删除</span><br><span class="line"><span class="meta">$</span> git stash pop</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 开发一个新的特性,建议新建一个分支;</span><br><span class="line"><span class="meta">$</span> git branch -D &lt;name&gt; # 如果要丢弃一个没有被合并过的分支,可以通过 -D 强行删除一个分支;</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 查看远程仓库信息,远程仓库的默认名称为origin</span><br><span class="line"><span class="meta">$</span> git remote </span><br><span class="line"><span class="meta">$</span> git remote -v # 显示更详细信息,可以看到可以抓取和push的origin地址</span><br><span class="line"><span class="meta">$</span> git push origin master # 推送到master分支</span><br><span class="line"><span class="meta">$</span> git push origin dev    # 推送到dev分支</span><br></pre></td></tr></table></figure>
+
+<p>多人协作的模式通常是这样:</p>
+<ol>
+<li>首先可以试图通过 <code>git push origin &lt;branch-name&gt;</code>推送自己的修改</li>
+<li>如果推送失败,则因为远程分支比你本地的分支更新,需要使用<code>git pull</code>合并</li>
+<li>如果合并有冲突,则解决冲突,并在本地提交;</li>
+<li>没有冲突或者解决完冲突后,再用<code>git push orign &lt;branch-name&gt;</code>推送</li>
+</ol>
+<p>如果<code>git pull</code> 提示<code>no tracking information</code>,则说明本地分支和远程分支的链接没有创建,用命令<code>git branch --set-upstream-to &lt;branch-name&gt; origin/&lt;branch-name&gt;</code></p>
+<h4 id="tag-标签"><a href="#tag-标签" class="headerlink" title="tag 标签"></a>tag 标签</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> git tag v1.0 # 基于当前提交的commit_id打标签;</span><br><span class="line"><span class="meta">$</span> git tag v0.0 2bbe5f6 # 基于某一个commit 打标签;</span><br><span class="line"><span class="meta">$</span> git tag # 查看标签;</span><br><span class="line"><span class="meta">$</span> git show v0.9 # 查看标签的详细信息;</span><br><span class="line"><span class="meta">#</span> 创建带说明的标签;用-a 指定标签名,-m 指明说明文字</span><br><span class="line"><span class="meta">$</span> git tag -a v0.8 -m "released version 0.8" 2bbe5f6</span><br></pre></td></tr></table></figure>
+
+<h3 id="git-rebase"><a href="#git-rebase" class="headerlink" title="git rebase"></a>git rebase</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> git log --graph --pretty=oneline --abbrev-commit</span><br><span class="line"><span class="meta">$</span> git rebase # 变基</span><br></pre></td></tr></table></figure>
+
+
       
     </div>
     <footer class="article-footer">
