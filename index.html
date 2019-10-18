@@ -62,6 +62,54 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-spring自定义注解扫描" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2019/10/18/spring自定义注解扫描/" class="article-date">
+  <time datetime="2019-10-18T02:43:49.000Z" itemprop="datePublished">2019-10-18</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/10/18/spring自定义注解扫描/">spring自定义注解扫描</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="Spring自定义注解扫描"><a href="#Spring自定义注解扫描" class="headerlink" title="Spring自定义注解扫描"></a>Spring自定义注解扫描</h2><h3 id="方式一"><a href="#方式一" class="headerlink" title="方式一:"></a>方式一:</h3><p>目前比较简单的类或者方法的扫描是直接基于类路径扫描实现,这个不依赖于框架,比较容易实现;</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">testUseScanner</span><span class="params">()</span></span>&#123;</span><br><span class="line">  Class clazz = MyTestReposity.class;</span><br><span class="line">  <span class="keyword">if</span>(clazz.isAnnotationPresent(MyBean.class))&#123;</span><br><span class="line">  System.out.println(MyTestReposity.class.getName()+<span class="string">"找到了MyBean的注解!"</span>);</span><br><span class="line">  MyBean myBean = (MyBean) clazz.getAnnotation(MyBean.class);</span><br><span class="line">  System.out.println(myBean.value());</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="方式二"><a href="#方式二" class="headerlink" title="方式二:"></a>方式二:</h3><p>如果使用了Spring框架,还可以在自定义注解上添加@Componet注解.因为添加了@Component注解,在spring加载的时候会通过<code>ClassPathScanningCandidateComponentProvider</code>类扫描@Component的注解类.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Target</span>(ElementType.TYPE)</span><br><span class="line"><span class="meta">@Retention</span>(RetentionPolicy.RUNTIME)</span><br><span class="line"><span class="meta">@Documented</span></span><br><span class="line"><span class="meta">@Component</span></span><br><span class="line"><span class="keyword">public</span> <span class="meta">@interface</span> MyBean &#123;</span><br><span class="line">    <span class="function">String <span class="title">value</span><span class="params">()</span> <span class="keyword">default</span> ""</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">registerDefaultFilters</span><span class="params">()</span> </span>&#123;</span><br><span class="line">		<span class="keyword">this</span>.includeFilters.add(<span class="keyword">new</span> AnnotationTypeFilter(Component.class));</span><br><span class="line">		ClassLoader cl = ClassPathScanningCandidateComponentProvider.class.getClassLoader();</span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			<span class="keyword">this</span>.includeFilters.add(<span class="keyword">new</span> AnnotationTypeFilter(</span><br><span class="line">					((Class&lt;? extends Annotation&gt;) ClassUtils.forName(<span class="string">"javax.annotation.ManagedBean"</span>, cl)), <span class="keyword">false</span>));</span><br><span class="line">			logger.trace(<span class="string">"JSR-250 'javax.annotation.ManagedBean' found and supported for component scanning"</span>);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">catch</span> (ClassNotFoundException ex) &#123;</span><br><span class="line">			<span class="comment">// JSR-250 1.1 API (as included in Java EE 6) not available - simply skip.</span></span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			<span class="keyword">this</span>.includeFilters.add(<span class="keyword">new</span> AnnotationTypeFilter(</span><br><span class="line">					((Class&lt;? extends Annotation&gt;) ClassUtils.forName(<span class="string">"javax.inject.Named"</span>, cl)), <span class="keyword">false</span>));</span><br><span class="line">			logger.trace(<span class="string">"JSR-330 'javax.inject.Named' annotation found and supported for component scanning"</span>);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">catch</span> (ClassNotFoundException ex) &#123;</span><br><span class="line">			<span class="comment">// JSR-330 API not available - simply skip.</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后在ApplicationContext.getBean()的时候就可以取得到自定义注解的信息.</p>
+<h3 id="方式三"><a href="#方式三" class="headerlink" title="方式三:"></a>方式三:</h3><p>如果自定义注解不绑定@Component,且使用了Spring框架的时候如何优雅的实现自定义注解扫描呢?Spring同样提供了一个类可以满足这个需求,这个类就是<code>ClassPathBeanDefinitionScanner</code>.可以通过继承该类来完成自定义注解的扫描.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyClassPathDefinitionScanner</span> <span class="keyword">extends</span> <span class="title">ClassPathBeanDefinitionScanner</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> Class type;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">MyClassPathDefinitionScanner</span><span class="params">(BeanDefinitionRegistry registry, Class&lt;? extends Annotation&gt; type)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(registry);</span><br><span class="line">        <span class="keyword">this</span>.type = type;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">registryTypeFilter</span><span class="params">()</span></span>&#123;</span><br><span class="line">        addIncludeFilter(<span class="keyword">new</span> AnnotationTypeFilter(type));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">testSimpleScanner</span><span class="params">()</span></span>&#123;</span><br><span class="line">    String base_package = <span class="string">"com.example.noscan"</span>;</span><br><span class="line">    GenericApplicationContext context = <span class="keyword">new</span> GenericApplicationContext();</span><br><span class="line">    MyClassPathDefinitionScanner scanner = <span class="keyword">new</span> MyClassPathDefinitionScanner(context, MyBean.class);</span><br><span class="line">    <span class="comment">//注册过滤器</span></span><br><span class="line">    scanner.registryTypeFilter();</span><br><span class="line">    <span class="keyword">int</span> bdcount = scanner.scan(base_package);</span><br><span class="line">    context.refresh();</span><br><span class="line">    String[] beanDefinitionNames = context.getBeanDefinitionNames();</span><br><span class="line">    System.out.println(<span class="string">"count is "</span> + beanDefinitionNames.length);</span><br><span class="line">    <span class="keyword">for</span> (String beanDefinitionName : beanDefinitionNames) &#123;</span><br><span class="line">        System.out.println(beanDefinitionName);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2019/10/18/spring自定义注解扫描/" data-id="ck1vklf6k0000sys6ds92ktwf" class="article-share-link">Share</a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+  
     <article id="post-dubbo-learn" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
     <a href="/2019/10/16/dubbo-learn/" class="article-date">
@@ -88,7 +136,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/16/dubbo-learn/" data-id="ck1t1b58a0000fus6xaaxmecd" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/16/dubbo-learn/" data-id="ck1vklf6o0002sys6lbz5tfk4" class="article-share-link">Share</a>
       
       
     </footer>
@@ -158,7 +206,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/14/git-learn/" data-id="ck1t1b58d0001fus6t2tjutp1" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/14/git-learn/" data-id="ck1vklf6m0001sys6n0nfbnf5" class="article-share-link">Share</a>
       
       
     </footer>
@@ -207,7 +255,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/14/hello-world/" data-id="ck1t1b58e0002fus6eoyw51o2" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/14/hello-world/" data-id="ck1vklf6o0003sys6wqu3070w" class="article-share-link">Share</a>
       
       
     </footer>
@@ -246,6 +294,10 @@
     <h3 class="widget-title">Recent Posts</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2019/10/18/spring自定义注解扫描/">spring自定义注解扫描</a>
+          </li>
         
           <li>
             <a href="/2019/10/16/dubbo-learn/">dubbo-learn</a>
