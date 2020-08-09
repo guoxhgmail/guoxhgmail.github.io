@@ -62,6 +62,99 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-一个Mysql实例自动创建多个Activiti数据库问题" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2020/08/10/一个Mysql实例自动创建多个Activiti数据库问题/" class="article-date">
+  <time datetime="2020-08-09T16:21:51.000Z" itemprop="datePublished">2020-08-10</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2020/08/10/一个Mysql实例自动创建多个Activiti数据库问题/">一个Mysql实例自动创建多个Activiti数据库问题</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="一个MySQL实例有多个Activiti数据库问题"><a href="#一个MySQL实例有多个Activiti数据库问题" class="headerlink" title="一个MySQL实例有多个Activiti数据库问题"></a>一个MySQL实例有多个Activiti数据库问题</h1><p>使用SpringBoot + activiti6 搭建审批流项目,数据库使用的是MySQL.且我的数据库下存在多个activiti相关的数据库 schema.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.activiti&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;activiti-spring-boot-starter-basic&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;6.0.0&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+
+<p>配置文件</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver</span><br><span class="line">spring.datasource.url=jdbc:mysql://localhost:3306/activiti6?useUnicode=utf8&amp;serverTimezone=Asia/Shanghai</span><br><span class="line">spring.datasource.username=root</span><br><span class="line">spring.datasource.password=123456</span><br><span class="line"></span><br><span class="line">spring.activiti.check-process-definitions=false</span><br><span class="line">spring.activiti.database-schema-update=true</span><br></pre></td></tr></table></figure>
+
+<p>因为我的数据库下已经存在了一个activiti7的数据库,所以我这次又新建了一个activiti6的数据库,然后在启动的时候没有自动创建表,而是直接进行了activiti 表的查询,并报了如下的错误</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">org.apache.ibatis.exceptions.PersistenceException: </span><br><span class="line">### Error querying database.  Cause: java.sql.SQLSyntaxErrorException: Table &apos;activiti6.act_ge_property&apos; doesn&apos;t exist</span><br><span class="line">### The error may exist in org/activiti/db/mapping/entity/Property.xml</span><br><span class="line">### The error may involve org.activiti.engine.impl.persistence.entity.PropertyEntityImpl.selectProperty-Inline</span><br><span class="line">### The error occurred while setting parameters</span><br><span class="line">### SQL: select * from ACT_GE_PROPERTY where NAME_ = ?</span><br><span class="line">### Cause: java.sql.SQLSyntaxErrorException: Table &apos;activiti6.act_ge_property&apos; doesn&apos;t exist</span><br></pre></td></tr></table></figure>
+
+<p>然后我就开始跟断点看源码查找问题,发现它走到了如下这段代码<code>org.activiti.engine.impl.db.DbSqlSession</code>(中间代码省略了一部分)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">public String dbSchemaUpdate() &#123;</span><br><span class="line"></span><br><span class="line">  String feedback = null;</span><br><span class="line">  boolean isUpgradeNeeded = false;</span><br><span class="line">  int matchingVersionIndex = -1;</span><br><span class="line"></span><br><span class="line">  if (isEngineTablePresent()) &#123;</span><br><span class="line"></span><br><span class="line">    PropertyEntity dbVersionProperty = selectById(PropertyEntity.class, &quot;schema.version&quot;);</span><br><span class="line">    </span><br><span class="line">    ....</span><br><span class="line">    </span><br><span class="line">  &#125;else &#123;</span><br><span class="line">  	dbSchemaCreateEngine();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>按预想建的是空白数据库,应该要走else的逻辑,怎么会进到if里面呢,我又继续跟了<code>isEngineTablePresent</code>这个方法,很简短,就是看数据库里面表是否存在</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public boolean isEngineTablePresent() &#123;</span><br><span class="line">  return isTablePresent(&quot;ACT_RU_EXECUTION&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>继续看<code>isTablePresent</code>方法,问题就出在下面这段代码上了,这个tables返回有内容,导致tables.next()为true</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">try &#123;</span><br><span class="line">        tables = databaseMetaData.getTables(catalog, schema, tableName, JDBC_METADATA_TABLE_TYPES);</span><br><span class="line">        return tables.next();</span><br><span class="line">      &#125; finally &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">          tables.close();</span><br><span class="line">        &#125; catch (Exception e) &#123;</span><br><span class="line">          log.error(&quot;Error closing meta data tables&quot;, e);</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure>
+
+<p>继续看,<code>DatabaseMetaData</code>是一个接口,断点进到了下面<code>com.zaxxer.hikari.pool.HikariProxyDatabaseMetaData#getTables</code>,接着调用父类的<code>com.zaxxer.hikari.pool.ProxyDatabaseMetaData#getTables</code>方法.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public ResultSet getTables(String catalog, String schemaPattern, String tableNamePattern, String[] types) throws SQLException &#123;</span><br><span class="line">        ResultSet resultSet = this.delegate.getTables(catalog, schemaPattern, tableNamePattern, types);</span><br><span class="line">        Statement statement = resultSet.getStatement();</span><br><span class="line">        if (statement != null) &#123;</span><br><span class="line">            statement = ProxyFactory.getProxyStatement(this.connection, statement);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        return ProxyFactory.getProxyResultSet(this.connection, (ProxyStatement)statement, resultSet);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>this.delegate.getTables(catalog, schemaPattern, tableNamePattern, types);</code> 这段代码进到了<code>com.mysql.cj.jdbc.DatabaseMetaDataUsingInfoSchema</code>这个类中.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">    public ResultSet getTables(String catalog, String schemaPattern, String tableNamePattern, String[] types) throws SQLException &#123;</span><br><span class="line">        String db = getDatabase(catalog, schemaPattern);</span><br><span class="line"></span><br><span class="line">        db = this.pedantic ? db : StringUtils.unQuoteIdentifier(db, this.quotedId);</span><br><span class="line">        ...</span><br><span class="line">        </span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>继续跟<code>getDatabase()</code>方法.该方法实现在父类<code>com.mysql.cj.jdbc.DatabaseMetaData</code>中</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">protected String getDatabase(String catalog, String schema) &#123;</span><br><span class="line">        if (this.databaseTerm.getValue() == DatabaseTerm.SCHEMA) &#123;</span><br><span class="line">            return schema == null &amp;&amp; this.nullDatabaseMeansCurrent.getValue() ? this.database : schema;</span><br><span class="line">        &#125;</span><br><span class="line">        return catalog == null &amp;&amp; this.nullDatabaseMeansCurrent.getValue() ? this.database : catalog;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个时候就看到了schema和catelog的都是null,然后继续跟下去的话sql就变成了如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SELECT TABLE_SCHEMA AS TABLE_CAT, NULL AS TABLE_SCHEM, TABLE_NAME, CASE WHEN TABLE_TYPE=&apos;BASE TABLE&apos; THEN CASE WHEN TABLE_SCHEMA = &apos;mysql&apos; OR TABLE_SCHEMA = &apos;performance_schema&apos; THEN &apos;SYSTEM TABLE&apos; ELSE &apos;TABLE&apos; END WHEN TABLE_TYPE=&apos;TEMPORARY&apos; THEN &apos;LOCAL_TEMPORARY&apos; ELSE TABLE_TYPE END AS TABLE_TYPE, TABLE_COMMENT AS REMARKS, NULL AS TYPE_CAT, NULL AS TYPE_SCHEM, NULL AS TYPE_NAME, NULL AS SELF_REFERENCING_COL_NAME, NULL AS REF_GENERATION FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE &apos;ACT_RU_EXECUTION&apos; HAVING TABLE_TYPE IN (&apos;TABLE&apos;,null,null,null,null) ORDER BY TABLE_TYPE, TABLE_SCHEMA, TABLE_NAME</span><br></pre></td></tr></table></figure>
+
+<p>根据这个sql执行的结果可以看到我的数据库中是存在数据的</p>
+<p><img src="../imgs/image-20200721213259870.png" alt="image-20200721213259870"></p>
+<p>然后就可开始看为什么catalog为null呢,然后就继续看<code>nullDatabaseMeansCurrent</code>这个属性(其实跟到getDatabase()方法的时候已经进到了mysql-connector-java的类中了).</p>
+<p>这个属性在<code>com.mysql.cj.jdbc.DatabaseMetaData</code>的定义为</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">protected RuntimeProperty&lt;Boolean&gt; nullDatabaseMeansCurrent;</span><br></pre></td></tr></table></figure>
+
+<p>看该类的构造方法可以看到</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">protected DatabaseMetaData(JdbcConnection connToSet, String databaseToSet, ResultSetFactory resultSetFactory) &#123;</span><br><span class="line">        this.conn = connToSet;</span><br><span class="line">        this.session = (NativeSession) connToSet.getSession();</span><br><span class="line">        this.database = databaseToSet;</span><br><span class="line">        this.resultSetFactory = resultSetFactory;</span><br><span class="line">        this.exceptionInterceptor = this.conn.getExceptionInterceptor();</span><br><span class="line">        this.databaseTerm = this.conn.getPropertySet().&lt;DatabaseTerm&gt;getEnumProperty(PropertyKey.databaseTerm);</span><br><span class="line">        this.nullDatabaseMeansCurrent = this.conn.getPropertySet().getBooleanProperty(PropertyKey.nullDatabaseMeansCurrent);</span><br><span class="line">        this.pedantic = this.conn.getPropertySet().getBooleanProperty(PropertyKey.pedantic).getValue();</span><br><span class="line">        this.tinyInt1isBit = this.conn.getPropertySet().getBooleanProperty(PropertyKey.tinyInt1isBit).getValue();</span><br><span class="line">        this.transformedBitIsBoolean = this.conn.getPropertySet().getBooleanProperty(PropertyKey.transformedBitIsBoolean).getValue();</span><br><span class="line">        this.useHostsInPrivileges = this.conn.getPropertySet().getBooleanProperty(PropertyKey.useHostsInPrivileges).getValue();</span><br><span class="line">        this.quotedId = this.session.getIdentifierQuoteString();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>在<code>com.mysql.cj.conf.PropertyKey</code>类中可以看到</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nullDatabaseMeansCurrent(&quot;nullDatabaseMeansCurrent&quot;, &quot;nullCatalogMeansCurrent&quot;, true), //</span><br></pre></td></tr></table></figure>
+
+<p>然后跟到<code>com.mysql.cj.conf.DefaultPropertySet</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">public DefaultPropertySet() &#123;</span><br><span class="line">    for (PropertyDefinition&lt;?&gt; pdef : PropertyDefinitions.PROPERTY_KEY_TO_PROPERTY_DEFINITION.values()) &#123;</span><br><span class="line">        addProperty(pdef.createRuntimeProperty());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到<code>PropertyDefinitions.PROPERTY_KEY_TO_PROPERTY_DEFINITION</code></p>
+<p>跟到<code>com.mysql.cj.conf.PropertyDefinitions</code>类中,果然发现了<code>nullDatabaseMeansCurrent</code>的定义.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">new BooleanPropertyDefinition(PropertyKey.nullDatabaseMeansCurrent, DEFAULT_VALUE_FALSE, RUNTIME_MODIFIABLE,</span><br><span class="line">                        Messages.getString(&quot;ConnectionProperties.nullCatalogMeansCurrent&quot;), &quot;3.1.8&quot;, CATEGORY_METADATA, Integer.MIN_VALUE),</span><br></pre></td></tr></table></figure>
+
+<p>可以看到他的默认值为false.</p>
+<p>然后我们在配置文件的数据库链接上加上<code>&amp;nullCatalogMeansCurrent=true</code>,然后重新执行程序.发现数据库表插入正常.问题解决.</p>
+<p>最后的配置文件:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">spring.datasource.url=jdbc:mysql://localhost:3306/activiti6?useUnicode=utf8&amp;serverTimezone=Asia/Shanghai&amp;nullCatalogMeansCurrent=true</span><br><span class="line">spring.datasource.username=root</span><br><span class="line">spring.datasource.password=123456</span><br><span class="line"></span><br><span class="line">spring.activiti.check-process-definitions=false</span><br><span class="line">spring.activiti.database-schema-update=true</span><br></pre></td></tr></table></figure>
+
+<p>参考文章</p>
+<p><a href="http://www.bieryun.com/4479.html" target="_blank" rel="noopener">http://www.bieryun.com/4479.html</a></p>
+<p><a href="https://www.jianshu.com/p/dbeeac29ff27" target="_blank" rel="noopener">https://www.jianshu.com/p/dbeeac29ff27</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2020/08/10/一个Mysql实例自动创建多个Activiti数据库问题/" data-id="ckdnap8qe00061es6luoo1e9x" class="article-share-link">Share</a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+  
     <article id="post-为什么要重写hashcode和equals" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
     <a href="/2020/08/09/为什么要重写hashcode和equals/" class="article-date">
@@ -98,7 +191,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2020/08/09/为什么要重写hashcode和equals/" data-id="ckdnal4vk0009wos69n1fl2wd" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2020/08/09/为什么要重写hashcode和equals/" data-id="ckdnap8qf00071es6obty0anj" class="article-share-link">Share</a>
       
       
     </footer>
@@ -153,7 +246,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/11/07/springboot2-0/" data-id="ckdnal4vh0007wos6e2l9u7k8" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/11/07/springboot2-0/" data-id="ckdnap8qc00041es6n9ty7ut2" class="article-share-link">Share</a>
       
       
     </footer>
@@ -192,7 +285,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/23/postgreSQL/" data-id="ckdnal4ve0004wos6zl9d8g1c" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/23/postgreSQL/" data-id="ckdnap8qb00031es6ehvm8t2q" class="article-share-link">Share</a>
       
       
     </footer>
@@ -242,7 +335,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/18/spring自定义注解扫描/" data-id="ckdnal4vi0008wos61lmk8doh" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/18/spring自定义注解扫描/" data-id="ckdnap8qd00051es6e38jj663" class="article-share-link">Share</a>
       
       
     </footer>
@@ -281,7 +374,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/16/dubbo-learn/" data-id="ckdnal4v90000wos6ex2unk6k" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/16/dubbo-learn/" data-id="ckdnap8q700001es6jtzegxxy" class="article-share-link">Share</a>
       
       
     </footer>
@@ -325,15 +418,15 @@
 <li>Git有强大的分支管理.</li>
 </ol>
 <h3 id="git安装"><a href="#git安装" class="headerlink" title="git安装"></a>git安装</h3><p>git 安装完后,需要最后一步设置</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> git config --global user.name <span class="string">"guoxh"</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git config --global user.emial <span class="string">"guoxh@aliyun.com"</span></span></span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> git config --global user.name "guoxh"</span><br><span class="line"><span class="meta">$</span> git config --global user.emial "guoxh@aliyun.com"</span><br></pre></td></tr></table></figure>
 
 <h3 id="创建版本库"><a href="#创建版本库" class="headerlink" title="创建版本库"></a>创建版本库</h3><p>在任一空白目录创建一个文件夹,然后执行 <code>git init</code>命令将这个目录变成Git可以要管理的仓库.</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> git init  <span class="comment">#在工作目录中初始化新仓库</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> touch readme.md <span class="comment">#创建一个readme.md的文件</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git add . <span class="comment">#添加文件到git版本控制中</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git commit -m <span class="string">"first commit "</span> <span class="comment"># 提交到暂存区</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git <span class="built_in">clone</span> </span></span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> git status</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git diff README.md <span class="comment">#如果文件修改后未提交可以通过该命令查看修改的内容.</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git <span class="built_in">log</span> <span class="comment"># 查看提交历史 git log --pretty=oneline</span></span></span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> git init  #在工作目录中初始化新仓库</span><br><span class="line"><span class="meta">$</span> touch readme.md #创建一个readme.md的文件</span><br><span class="line"><span class="meta">$</span> git add . #添加文件到git版本控制中</span><br><span class="line"><span class="meta">$</span> git commit -m "first commit " # 提交到暂存区</span><br><span class="line"><span class="meta">$</span> git clone </span><br><span class="line"></span><br><span class="line"><span class="meta">$</span> git status</span><br><span class="line"><span class="meta">$</span> git diff README.md #如果文件修改后未提交可以通过该命令查看修改的内容.</span><br><span class="line"><span class="meta">$</span> git log # 查看提交历史 git log --pretty=oneline</span><br></pre></td></tr></table></figure>
 
 <p>在git中,<code>HEAD</code>表示当前版本,<code>HEAD^</code>表示上一个版本,以此类推,如果向上推100个版本,可以写成<code>HEAD-100</code>.</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> git 回退版本</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git reset --hard HEAD^</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git reset --hard commit-id</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git reflog <span class="comment"># 记录你的每一次命令</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> git checkout -- README.md <span class="comment">#在add前将文件回复到HEAD状态</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git reset HEAD README.md <span class="comment"># 将add后的修改回退到工作区</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git reset --hard HEAD^   <span class="comment"># 将commit后的数据回退到上一班本,git reflog 本地可以看到commit历史,但是别人查看不到</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> git add test.txt</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git commit -m <span class="string">"add test.txt"</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> rm -rf test.txt</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> 如果在本地删除文件,工作区和版本库信息不一致,一种是在版本库中删除该文件</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git rm test.txt</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git commit -m <span class="string">"del test.txt"</span></span></span><br><span class="line"><span class="meta">#</span><span class="bash"> 另一种方式是在恢复版本库中的文件,但是提交到版本库后修改的内容会丢失</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git checkout -- test.txt</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> git 回退版本</span><br><span class="line"><span class="meta">$</span> git reset --hard HEAD^</span><br><span class="line"><span class="meta">$</span> git reset --hard commit-id</span><br><span class="line"><span class="meta">$</span> git reflog # 记录你的每一次命令</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span> git checkout -- README.md #在add前将文件回复到HEAD状态</span><br><span class="line"><span class="meta">$</span> git reset HEAD README.md # 将add后的修改回退到工作区</span><br><span class="line"><span class="meta">$</span> git reset --hard HEAD^   # 将commit后的数据回退到上一班本,git reflog 本地可以看到commit历史,但是别人查看不到</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span> git add test.txt</span><br><span class="line"><span class="meta">$</span> git commit -m "add test.txt"</span><br><span class="line"><span class="meta">$</span> rm -rf test.txt</span><br><span class="line"><span class="meta">#</span> 如果在本地删除文件,工作区和版本库信息不一致,一种是在版本库中删除该文件</span><br><span class="line"><span class="meta">$</span> git rm test.txt</span><br><span class="line"><span class="meta">$</span> git commit -m "del test.txt"</span><br><span class="line"><span class="meta">#</span> 另一种方式是在恢复版本库中的文件,但是提交到版本库后修改的内容会丢失</span><br><span class="line"><span class="meta">$</span> git checkout -- test.txt</span><br></pre></td></tr></table></figure>
 
-<h3 id="git-分支管理"><a href="#git-分支管理" class="headerlink" title="git 分支管理"></a>git 分支管理</h3><h4 id="branch-分支"><a href="#branch-分支" class="headerlink" title="branch 分支"></a>branch 分支</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> ssh-keygen -t rsa -C <span class="string">"youemail@example.com"</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> git branch <span class="comment"># 查看分支</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git branch &lt;name&gt; <span class="comment"># 创建分支</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git checkout &lt;name&gt; <span class="comment"># 切换分支</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git checkout -b &lt;name&gt; <span class="comment"># 创建并切换分支</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git merge &lt;name&gt; <span class="comment"># 合并分支</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git branch -d &lt;name&gt; <span class="comment"># 删除分支</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> git stash</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git stash list </span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git stash apply</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git stash apply stash@&#123;0&#125;</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git stash drop <span class="comment"># git stash apply不会删除stash,需要通过git stash drop 删除</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git stash pop</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 开发一个新的特性,建议新建一个分支;</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git branch -D &lt;name&gt; <span class="comment"># 如果要丢弃一个没有被合并过的分支,可以通过 -D 强行删除一个分支;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 查看远程仓库信息,远程仓库的默认名称为origin</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git remote </span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git remote -v <span class="comment"># 显示更详细信息,可以看到可以抓取和push的origin地址</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git push origin master <span class="comment"># 推送到master分支</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git push origin dev    <span class="comment"># 推送到dev分支</span></span></span><br></pre></td></tr></table></figure>
+<h3 id="git-分支管理"><a href="#git-分支管理" class="headerlink" title="git 分支管理"></a>git 分支管理</h3><h4 id="branch-分支"><a href="#branch-分支" class="headerlink" title="branch 分支"></a>branch 分支</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> ssh-keygen -t rsa -C "youemail@example.com"</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span> git branch # 查看分支</span><br><span class="line"><span class="meta">$</span> git branch &lt;name&gt; # 创建分支</span><br><span class="line"><span class="meta">$</span> git checkout &lt;name&gt; # 切换分支</span><br><span class="line"><span class="meta">$</span> git checkout -b &lt;name&gt; # 创建并切换分支</span><br><span class="line"><span class="meta">$</span> git merge &lt;name&gt; # 合并分支</span><br><span class="line"><span class="meta">$</span> git branch -d &lt;name&gt; # 删除分支</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span> git stash</span><br><span class="line"><span class="meta">$</span> git stash list </span><br><span class="line"><span class="meta">$</span> git stash apply</span><br><span class="line"><span class="meta">$</span> git stash apply stash@&#123;0&#125;</span><br><span class="line"><span class="meta">$</span> git stash drop # git stash apply不会删除stash,需要通过git stash drop 删除</span><br><span class="line"><span class="meta">$</span> git stash pop</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 开发一个新的特性,建议新建一个分支;</span><br><span class="line"><span class="meta">$</span> git branch -D &lt;name&gt; # 如果要丢弃一个没有被合并过的分支,可以通过 -D 强行删除一个分支;</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 查看远程仓库信息,远程仓库的默认名称为origin</span><br><span class="line"><span class="meta">$</span> git remote </span><br><span class="line"><span class="meta">$</span> git remote -v # 显示更详细信息,可以看到可以抓取和push的origin地址</span><br><span class="line"><span class="meta">$</span> git push origin master # 推送到master分支</span><br><span class="line"><span class="meta">$</span> git push origin dev    # 推送到dev分支</span><br></pre></td></tr></table></figure>
 
 <p>多人协作的模式通常是这样:</p>
 <ol>
@@ -343,15 +436,15 @@
 <li>没有冲突或者解决完冲突后,再用<code>git push orign &lt;branch-name&gt;</code>推送</li>
 </ol>
 <p>如果<code>git pull</code> 提示<code>no tracking information</code>,则说明本地分支和远程分支的链接没有创建,用命令<code>git branch --set-upstream-to &lt;branch-name&gt; origin/&lt;branch-name&gt;</code></p>
-<h4 id="tag-标签"><a href="#tag-标签" class="headerlink" title="tag 标签"></a>tag 标签</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> git tag v1.0 <span class="comment"># 基于当前提交的commit_id打标签;</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git tag v0.0 2bbe5f6 <span class="comment"># 基于某一个commit 打标签;</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git tag <span class="comment"># 查看标签;</span></span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git show v0.9 <span class="comment"># 查看标签的详细信息;</span></span></span><br><span class="line"><span class="meta">#</span><span class="bash"> 创建带说明的标签;用-a 指定标签名,-m 指明说明文字</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git tag -a v0.8 -m <span class="string">"released version 0.8"</span> 2bbe5f6</span></span><br></pre></td></tr></table></figure>
+<h4 id="tag-标签"><a href="#tag-标签" class="headerlink" title="tag 标签"></a>tag 标签</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> git tag v1.0 # 基于当前提交的commit_id打标签;</span><br><span class="line"><span class="meta">$</span> git tag v0.0 2bbe5f6 # 基于某一个commit 打标签;</span><br><span class="line"><span class="meta">$</span> git tag # 查看标签;</span><br><span class="line"><span class="meta">$</span> git show v0.9 # 查看标签的详细信息;</span><br><span class="line"><span class="meta">#</span> 创建带说明的标签;用-a 指定标签名,-m 指明说明文字</span><br><span class="line"><span class="meta">$</span> git tag -a v0.8 -m "released version 0.8" 2bbe5f6</span><br></pre></td></tr></table></figure>
 
-<h3 id="git-rebase"><a href="#git-rebase" class="headerlink" title="git rebase"></a>git rebase</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> git <span class="built_in">log</span> --graph --pretty=oneline --abbrev-commit</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> git rebase <span class="comment"># 变基</span></span></span><br></pre></td></tr></table></figure>
+<h3 id="git-rebase"><a href="#git-rebase" class="headerlink" title="git rebase"></a>git rebase</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> git log --graph --pretty=oneline --abbrev-commit</span><br><span class="line"><span class="meta">$</span> git rebase # 变基</span><br></pre></td></tr></table></figure>
 
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/14/git-learn/" data-id="ckdnal4vg0006wos68myohoed" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/14/git-learn/" data-id="ckdnap8q900011es61iknvzvl" class="article-share-link">Share</a>
       
       
     </footer>
@@ -400,7 +493,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/14/hello-world/" data-id="ckdnal4vc0002wos6q4um74kz" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/14/hello-world/" data-id="ckdnap8qb00021es62jnh8gy2" class="article-share-link">Share</a>
       
       
     </footer>
@@ -441,6 +534,10 @@
       <ul>
         
           <li>
+            <a href="/2020/08/10/一个Mysql实例自动创建多个Activiti数据库问题/">一个Mysql实例自动创建多个Activiti数据库问题</a>
+          </li>
+        
+          <li>
             <a href="/2020/08/09/为什么要重写hashcode和equals/">为什么要重写hashcode和equals</a>
           </li>
         
@@ -454,10 +551,6 @@
         
           <li>
             <a href="/2019/10/18/spring自定义注解扫描/">spring自定义注解扫描</a>
-          </li>
-        
-          <li>
-            <a href="/2019/10/16/dubbo-learn/">dubbo-learn</a>
           </li>
         
       </ul>
