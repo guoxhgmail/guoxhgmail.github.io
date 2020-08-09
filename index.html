@@ -62,6 +62,100 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-springboot2-0" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2019/11/07/springboot2-0/" class="article-date">
+  <time datetime="2019-11-07T07:43:59.000Z" itemprop="datePublished">2019-11-07</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/11/07/springboot2-0/">springboot2.0</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="Springboot2-0部分踩坑记录"><a href="#Springboot2-0部分踩坑记录" class="headerlink" title="Springboot2.0部分踩坑记录"></a>Springboot2.0部分踩坑记录</h2><h3 id="RestTemplate"><a href="#RestTemplate" class="headerlink" title="RestTemplate"></a>RestTemplate</h3><p>Spring的<code>org.springframework.web.client.RestTemplate</code>默认是没有注册为bean的,如果使用需要关键字<code>new</code> 或者通过 <code>@Bean</code>注解生成.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> RestTemplate <span class="title">restTemplate</span><span class="params">()</span></span>&#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="keyword">new</span> RestTemplate();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="LoadBalanced注解"><a href="#LoadBalanced注解" class="headerlink" title="@LoadBalanced注解"></a><code>@LoadBalanced</code>注解</h3><p>在<code>RestTemplate</code>中如果在定义的时候加上了该注解,需要注意在<code>@Autowired</code>的时候也需要加上该注解才能生效;反之如果在<code>@Autowired</code>上加了<code>@LoadBalanced</code>注解,则在<code>RestTemplate</code>注册bean的时候也一定要加上该注解.</p>
+<h3 id="Hystrix-stream-404问题"><a href="#Hystrix-stream-404问题" class="headerlink" title="Hystrix.stream 404问题"></a>Hystrix.stream 404问题</h3><p>springboot2.0之后 在pom.xml中配置了<code>spring-boot-starter-actuator</code>之后直接访问<code>/hystrix.stream</code>会报404,原因是在springboot2.0之后在<code>HystrixServletAutoConfiguration</code>中增加了如下内容.有一个<code>@ConditionalOnClass({ HystrixMetricsStreamServlet.class })</code>,所以需要手动加入一个<code>HystrixMetricsStreamServlet</code></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="meta">@ConditionalOnWebApplication</span>(type = SERVLET)</span><br><span class="line"><span class="meta">@ConditionalOnBean</span>(HystrixCommandAspect.class) <span class="comment">// only install the stream if enabled</span></span><br><span class="line"><span class="meta">@ConditionalOnClass</span>(&#123; HystrixMetricsStreamServlet.class &#125;)</span><br><span class="line"><span class="meta">@EnableConfigurationProperties</span>(HystrixProperties.class)</span><br><span class="line"><span class="keyword">protected</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">HystrixServletAutoConfiguration</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">	<span class="meta">@Bean</span></span><br><span class="line">	<span class="meta">@ConditionalOnEnabledEndpoint</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> HystrixStreamEndpoint <span class="title">hystrixStreamEndpoint</span><span class="params">(HystrixProperties properties)</span> </span>&#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="keyword">new</span> HystrixStreamEndpoint(properties.getConfig());</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="meta">@Bean</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> HasFeatures <span class="title">hystrixStreamFeature</span><span class="params">()</span> </span>&#123;</span><br><span class="line">		<span class="keyword">return</span> HasFeatures.namedFeature(<span class="string">"Hystrix Stream Servlet"</span>,</span><br><span class="line">				HystrixMetricsStreamServlet.class);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在工程中增加如下代码,然后重启应用就可以正常访问<code>/hystrix.stream</code></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> ServletRegistrationBean <span class="title">getServlet</span><span class="params">()</span></span>&#123;</span><br><span class="line">  HystrixMetricsStreamServlet streamServlet = <span class="keyword">new</span> HystrixMetricsStreamServlet();</span><br><span class="line">  ServletRegistrationBean registrationBean = <span class="keyword">new</span> ServletRegistrationBean(streamServlet);</span><br><span class="line">  registrationBean.setLoadOnStartup(<span class="number">1</span>);</span><br><span class="line">  registrationBean.setUrlMappings(Collections.singletonList(<span class="string">"/hystrix.stream"</span>));</span><br><span class="line">  registrationBean.setName(<span class="string">"HystrixMetricsStreamServlet"</span>);</span><br><span class="line">  <span class="keyword">return</span> registrationBean;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Hystrix-Dashboard"><a href="#Hystrix-Dashboard" class="headerlink" title="Hystrix Dashboard"></a>Hystrix Dashboard</h3><p>首先访问<code>/hystrix</code>,然后在url中输入<code>http://ip:port/hystrix.stream</code>.</p>
+<h3 id="SpringCloud-Config手动更新配置中心"><a href="#SpringCloud-Config手动更新配置中心" class="headerlink" title="SpringCloud Config手动更新配置中心"></a>SpringCloud Config手动更新配置中心</h3><p>在springboot1.5.x版本中,在pom.xml依赖中增加如下依赖:</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.boot<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-boot-starter-actuator<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>然后在配置文件中增加<code>management.security.enable=false #是否开启actuator认证</code>,然后通过POST请求调用<code>/refresh</code>方法.</p>
+<p>在spring2.0版本中,<code>management.security.enable</code> 标记为过时方法,在properties文件中可以使用<code>management.endpoints.web.exposure.include=*</code>暴露所有端点,或者使用yml中的如下配置</p>
+<figure class="highlight yml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">management:</span></span><br><span class="line"><span class="attr">  endpoints:</span></span><br><span class="line"><span class="attr">    web:</span></span><br><span class="line"><span class="attr">      exposure:</span></span><br><span class="line"><span class="attr">        include:</span> <span class="string">refresh</span></span><br></pre></td></tr></table></figure>
+
+<p>POST请求的地址也有变化,变成了<code>/actuator/refresh</code>.</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2019/11/07/springboot2-0/" data-id="ckdnak3af0008uys65qnu3p26" class="article-share-link">Share</a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-postgreSQL" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2019/10/23/postgreSQL/" class="article-date">
+  <time datetime="2019-10-23T02:04:30.000Z" itemprop="datePublished">2019-10-23</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/10/23/postgreSQL/">postgreSQL</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>安装PG</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">yum install https://download.postgresql.org/pub/repos/yum/11/redhat/rhel-7-x86_64/pgdg-redhat11-11-2.noarch.rpm </span><br><span class="line">yum install postgresql11-server postgresql11-devel postgresql11-llvmjit </span><br><span class="line">/usr/pgsql-11/bin/postgresql-11-setup initdb </span><br><span class="line">systemctl enable postgresql-11 </span><br><span class="line">systemctl start postgresql-11</span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2019/10/23/postgreSQL/" data-id="ckdnak3ad0006uys646cw5hvg" class="article-share-link">Share</a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+  
     <article id="post-spring自定义注解扫描" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
     <a href="/2019/10/18/spring自定义注解扫描/" class="article-date">
@@ -97,10 +191,12 @@
 <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyClassPathDefinitionScanner</span> <span class="keyword">extends</span> <span class="title">ClassPathBeanDefinitionScanner</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> Class type;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">MyClassPathDefinitionScanner</span><span class="params">(BeanDefinitionRegistry registry, Class&lt;? extends Annotation&gt; type)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(registry);</span><br><span class="line">        <span class="keyword">this</span>.type = type;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">registryTypeFilter</span><span class="params">()</span></span>&#123;</span><br><span class="line">        addIncludeFilter(<span class="keyword">new</span> AnnotationTypeFilter(type));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">testSimpleScanner</span><span class="params">()</span></span>&#123;</span><br><span class="line">    String base_package = <span class="string">"com.example.noscan"</span>;</span><br><span class="line">    GenericApplicationContext context = <span class="keyword">new</span> GenericApplicationContext();</span><br><span class="line">    MyClassPathDefinitionScanner scanner = <span class="keyword">new</span> MyClassPathDefinitionScanner(context, MyBean.class);</span><br><span class="line">    <span class="comment">//注册过滤器</span></span><br><span class="line">    scanner.registryTypeFilter();</span><br><span class="line">    <span class="keyword">int</span> bdcount = scanner.scan(base_package);</span><br><span class="line">    context.refresh();</span><br><span class="line">    String[] beanDefinitionNames = context.getBeanDefinitionNames();</span><br><span class="line">    System.out.println(<span class="string">"count is "</span> + beanDefinitionNames.length);</span><br><span class="line">    <span class="keyword">for</span> (String beanDefinitionName : beanDefinitionNames) &#123;</span><br><span class="line">        System.out.println(beanDefinitionName);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/18/spring自定义注解扫描/" data-id="ck1vklf6k0000sys6ds92ktwf" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/18/spring自定义注解扫描/" data-id="ckdnak3ae0007uys6dd45ljvp" class="article-share-link">Share</a>
       
       
     </footer>
@@ -132,11 +228,14 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        
+        <h3 id="创建项目"><a href="#创建项目" class="headerlink" title="创建项目"></a>创建项目</h3><p>根据dubbo官方文档 服务最佳化实践 里面说的:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">建议将服务接口、服务模型、服务异常等均放在API包中，因为服务模型和异常也是API的一部分，这样做也是符合分包原则：重用发布等价原则（ERP），共同重用原则（CRP）。</span><br></pre></td></tr></table></figure>
+
+
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/16/dubbo-learn/" data-id="ck1vklf6o0002sys6lbz5tfk4" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/16/dubbo-learn/" data-id="ckdnak3a70000uys62vuhcbwj" class="article-share-link">Share</a>
       
       
     </footer>
@@ -206,7 +305,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/14/git-learn/" data-id="ck1vklf6m0001sys6n0nfbnf5" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/14/git-learn/" data-id="ckdnak3aa0002uys6p2no0wuz" class="article-share-link">Share</a>
       
       
     </footer>
@@ -255,7 +354,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/10/14/hello-world/" data-id="ck1vklf6o0003sys6wqu3070w" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/10/14/hello-world/" data-id="ckdnak3ac0004uys6e7au2297" class="article-share-link">Share</a>
       
       
     </footer>
@@ -283,7 +382,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">October 2019</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/11/">November 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">October 2019</a></li></ul>
     </div>
   </div>
 
@@ -296,6 +395,14 @@
       <ul>
         
           <li>
+            <a href="/2019/11/07/springboot2-0/">springboot2.0</a>
+          </li>
+        
+          <li>
+            <a href="/2019/10/23/postgreSQL/">postgreSQL</a>
+          </li>
+        
+          <li>
             <a href="/2019/10/18/spring自定义注解扫描/">spring自定义注解扫描</a>
           </li>
         
@@ -305,10 +412,6 @@
         
           <li>
             <a href="/2019/10/14/git-learn/">git_learn</a>
-          </li>
-        
-          <li>
-            <a href="/2019/10/14/hello-world/">Hello World</a>
           </li>
         
       </ul>
@@ -323,7 +426,7 @@
   
   <div class="outer">
     <div id="footer-info" class="inner">
-      &copy; 2019 John Doe<br>
+      &copy; 2020 John Doe<br>
       Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
     </div>
   </div>
